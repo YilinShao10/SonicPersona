@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语音合成与调整</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5d9d9, #d9e8f5); /* 柔和渐变背景 */
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 300px;
+            height: 100px;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #4A90E2;
+            border: none;
+            padding: 10px 20px;
+            color: #FFFFFF;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #00E676;
+        }
+        input[type="range"] {
+            width: 200px;
+        }
+        label {
+            font-size: 14px;
+            margin-right: 10px;
+            color: #333;
+        }
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>语音合成与调整</h1>
+    <div id="controls">
+        <textarea id="textInput" placeholder="输入文字"></textarea>
+        <button id="playBtn">播放</button>
+        <div class="slider-group">
+            <label for="speedSlider">语速:</label>
+            <input type="range" id="speedSlider" min="0.5" max="2" step="0.1" value="1">
+        </div>
+        <div class="slider-group">
+            <label for="pitchSlider">音调:</label>
+            <input type="range" id="pitchSlider" min="0.5" max="2" step="0.1" value="1">
+        </div>
+        <div class="slider-group">
+            <label for="ratingSlider">打分:</label>
+            <input type="range" id="ratingSlider" min="0" max="10" step="1" value="5">
+        </div>
+        <button id="saveBtn">确认并保存</button>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const textInput = document.getElementById('textInput');
+        const playBtn = document.getElementById('playBtn');
+        const speedSlider = document.getElementById('speedSlider');
+        const pitchSlider = document.getElementById('pitchSlider');
+        const ratingSlider = document.getElementById('ratingSlider');
+        const saveBtn = document.getElementById('saveBtn');
+
+        // 初始化SpeechSynthesisUtterance对象
+        let utterance = new SpeechSynthesisUtterance();
+        let mediaRecorder;
+        let audioChunks = [];
+
+        // 播放按钮点击事件
+        playBtn.addEventListener('click', () => {
+            // 设置语音内容和参数
+            utterance.text = textInput.value;
+            utterance.rate = parseFloat(speedSlider.value);
+            utterance.pitch = parseFloat(pitchSlider.value);
+
+            // 播放语音
+            window.speechSynthesis.speak(utterance);
+
+            // 开始录制音频
+            startRecording();
+        });
+
+        // 保存按钮点击事件
+        saveBtn.addEventListener('click', () => {
+            const rating = ratingSlider.value;
+            const speed = speedSlider.value;
+            const pitch = pitchSlider.value;
+            console.log(`保存音频: 语速=${speed}, 音调=${pitch}, 打分=${rating}`);
+
+            // 保存录制的音频文件
+            if (audioChunks.length > 0) {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                const url = URL.createObjectURL(audioBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `recorded_audio_speed${speed}_pitch${pitch}_rating${rating}.mp3`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        });
+
+        // 录制音频函数
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+                    audioChunks = [];
+
+                    // 录制数据可用时存储
+                    mediaRecorder.addEventListener('dataavailable', event => {
+                        audioChunks.push(event.data);
+                    });
+
+                    // 语音播放结束时停止录制
+                    utterance.onend = () => {
+                        mediaRecorder.stop();
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+                })
+                .catch(err => {
+                    console.error('录制音频失败:', err);
+                    alert('无法录制音频，请确保已授予麦克风权限。');
+                });
+        }
+    </script>
+</body>
+</html>
